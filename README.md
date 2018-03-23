@@ -1,3 +1,5 @@
+[![HitCount](http://hits.dwyl.io/YTiStrafeNubzHD/ItemCase.svg)](http://hits.dwyl.io/YTiStrafeNubzHD/ItemCase)
+
 ItemCasePE
 =========
 
