@@ -229,7 +229,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     }
 
     private function loadCfg(Level $lv) {
-        $world = $lv->getName();
+        $world = $this->getServer()->getLevelManager()->getLevel();
         $f = $lv->getProvider()->getPath() . "itemcasepe.txt";
         $this->cases[$world] = [];
         if(!file_exists($f)) return;
