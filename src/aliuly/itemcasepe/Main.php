@@ -51,7 +51,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     public function onEnable() {
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         // Check pre-loaded worlds
-        foreach($this->getServer()->getLevels() as $l) {
+        foreach($this->getServer()->getLevelManager()->getLevels() as $l) {
             $this->loadCfg($l);
         }
         if(!is_dir($this->getDataFolder())) mkdir($this->getDataFolder());
