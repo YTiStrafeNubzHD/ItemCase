@@ -7,6 +7,7 @@ use pocketmine\command\CommandSender;
 use pocketmine\command\Command;
 use pocketmine\Player;
 use pocketmine\event\Listener;
+use pocketmine\Server;
 
 use pocketmine\block\Block;
 use pocketmine\entity\Entity;
@@ -122,7 +123,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
                 $this->rmItemCase($lv, $cid, $players);
             }
         }
-        foreach($this->getServer()->getLevels() as $lv) {
+        foreach(Server::getInstance()->getLevelManager()>getLevels() as $lv) {
             $world = $lv->getName();
             foreach(array_keys($this->cases[$world]) as $cid) {
                 $this->sndItemCase($lv, $cid, $players);
@@ -137,7 +138,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     ////////////////////////////////////////////////////////////////////////
     private function rmItemCase(Level $level, $cid, array $players) {
         //echo __METHOD__.",".__LINE__."\n";
-        $world = $level->getName();
+        $world = $level->getDisplayName();
         //echo "world=$world cid=$cid\n";
         // No EID assigned, it has not been spawned yet!
         if(!isset($this->cases[$world][$cid]["eid"])) return;
@@ -151,7 +152,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
 
     private function sndItemCase(Level $level, $cid, array $players) {
         //echo __METHOD__.",".__LINE__."\n";
-        $world = $level->getName();
+        $world = $level->getDisplayName();
         //echo "world=$world cid=$cid\n";
         $pos = explode(":", $cid);
         if(!isset($this->cases[$world][$cid]["eid"])) {
@@ -178,23 +179,23 @@ class Main extends PluginBase implements CommandExecutor, Listener {
 
     public function spawnPlayerCases(Player $pl, Level $level) {
         if(!isset($this->cases[$level->getName()])) return;
-        foreach(array_keys($this->cases[$level->getName()]) as $cid) {
+        foreach(array_keys($this->cases[$level->getDisplayName()]) as $cid) {
             $this->sndItemCase($level, $cid, [$pl]);
         }
     }
 
     public function spawnLevelItemCases(Level $level) {
-        if(!isset($this->cases[$level->getName()])) return;
+        if(!isset($this->cases[$level->getDisplayName()])) return;
         $ps = $level->getPlayers();
         if(!count($ps)) {
-            foreach(array_keys($this->cases[$level->getName()]) as $cid) {
+            foreach(array_keys($this->cases[$level->getDisplayName()]) as $cid) {
                 $this->sndItemCase($level, $cid, $ps);
             }
         }
     }
 
     public function despawnPlayerCases(Player $pl, Level $level) {
-        $world = $level->getName();
+        $world = $level->getDisplayName();
         if(!isset($this->cases[$world])) return;
         foreach(array_keys($this->cases[$world]) as $cid) {
             $this->rmItemCase($level, $cid, [$pl]);
@@ -203,7 +204,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
 
     public function addItemCase(Level $level, $cid, $idmeta, $count) {
         //echo __METHOD__.",".__LINE__."\n";
-        $world = $level->getName();
+        $world = $level->getDisplayName();
         //echo "world=$world cid=$cid idmeta=$idmeta\n";
         if(!isset($this->cases[$world])) $this->cases[$world] = [];
         if(isset($this->cases[$world][$cid])) return false;
@@ -215,7 +216,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     }
 
     private function saveCfg(Level $lv) {
-        $world = $lv->getName();
+        $world = $lv->getDisplayName();
         $f = $lv->getProvider()->getPath() . "itemcasepe.txt";
         if(!isset($this->cases[$world]) || count($this->cases[$world]) == 0) {
             if(file_exists($f)) unlink($f);
@@ -229,7 +230,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     }
 
     private function loadCfg(Level $lv) {
-        $world = $this->getServer()->getLevelManager()->getLevel();
+        $world = Server::getInstance()->getLevelManager()->getLevel();
         $f = $lv->getProvider()->getPath() . "itemcasepe.txt";
         $this->cases[$world] = [];
         if(!file_exists($f)) return;
@@ -249,23 +250,23 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     //
     // Make sure configs are loaded/unloaded
     public function onLevelLoad(LevelLoadEvent $e) {
-        $this->loadCfg($e->getLevel());
+        $this->loadCfg($e->Server::getInstance()->getLevelManager()->getLevel());
     }
 
     public function onLevelUnload(LevelUnloadEvent $e) {
-        $world = $e->getLevel()->getName();
+        $world = $e->Server::getInstance()->getLevelManager()->getLevel()->getDisplayName();
         if(isset($this->cases[$world])) unset($this->cases[$world]);
     }
 
     public function onPlayerJoin(PlayerJoinEvent $ev) {
         $pl = $ev->getPlayer();
-        $level = $pl->getLocation()->getLevel();
+        $level = $pl->getLocation()->getLevelManager()->getLevel();
         $this->spawnPlayerCases($pl, $level);
     }
 
     public function onPlayerRespawn(PlayerRespawnEvent $ev) {
         $pl = $ev->getPlayer();
-        $level = $pl->getLocation()->getLevel();
+        $level = $pl->getLocation()->getLevelManager()->getLevel();
         $this->spawnPlayerCases($pl, $level);
     }
 
@@ -275,11 +276,11 @@ class Main extends PluginBase implements CommandExecutor, Listener {
         }
         // Re-spawn as chunks get sent...
         $pl = $ev->getPlayer();
-        $level = $pl->getLevel();
-        if(!isset($this->cases[$level->getName()])) return;
+        $level = $pl->getLevelManager()->getLevel();
+        if(!isset($this->cases[$level->getDisplayName()])) return;
         $chunkX = $ev->getPacket()->chunkX;
         $chunkZ = $ev->getPacket()->chunkZ;
-        foreach(array_keys($this->cases[$level->getName()]) as $cid) {
+        foreach(array_keys($this->cases[$level->getDisplayName()]) as $cid) {
             $pos = explode(":", $cid);
             if($pos[0] >> 4 == $chunkX && $pos[2] >> 4 == $chunkZ) {
                 //echo "Respawn case... $cid\n"; //##DEBUG
@@ -293,7 +294,7 @@ class Main extends PluginBase implements CommandExecutor, Listener {
         $pl = $ev->getEntity();
         if(!($pl instanceof Player)) return;
         //echo $pl->getName()." Level Change\n";
-        foreach($this->getServer()->getLevels() as $lv) {
+        foreach(Server::getInstance()->getLevelManager()->getLevels() as $lv) {
             $this->despawnPlayerCases($pl, $lv);
         }
         $this->getScheduler()->scheduleDelayedTask(new PluginCallbackTask($this, [$this, "spawnPlayerCases"], [$pl, $ev->getTarget()]), 20);
@@ -358,19 +359,19 @@ class Main extends PluginBase implements CommandExecutor, Listener {
     public function onBlockBreak(BlockBreakEvent $ev) {
         $pl = $ev->getPlayer();
         $bl = $ev->getBlock();
-        $lv = $bl->getLevel();
+        $lv = $bl->getLevelManager()->getLevel();
         $yoff = $bl->getId() != Block::GLASS ? 1 : 0;
         $cid = implode(":", [$bl->getX(), $bl->getY() + $yoff, $bl->getZ()]);
 
         //echo "Block break at/near $cid\n";
-        if(isset($this->cases[$lv->getName()][$cid])) {
+        if(isset($this->cases[$lv->getDisplayName()][$cid])) {
             if(!$this->access($pl, "itemcase.destroy")) {
                 $ev->setCancelled();
                 return;
             }
             $pl->sendMessage("Destroying ItemCase $cid");
             $this->rmItemCase($lv, $cid, $this->getServer()->getOnlinePlayers());
-            unset($this->cases[$lv->getName()][$cid]);
+            unset($this->cases[$lv->getDisplayName()][$cid]);
             $this->saveCfg($lv);
         }
     }
